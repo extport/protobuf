@@ -1,11 +1,11 @@
-# extport/EXTENSION_NAME
+# extport/protobuf
 
-Unofficial PIE-compatible mirror of [UPSTREAM_OWNER/UPSTREAM_REPO](https://github.com/UPSTREAM_OWNER/UPSTREAM_REPO).
+Unofficial PIE-compatible mirror of [protocolbuffers/protobuf](https://github.com/protocolbuffers/protobuf).
 
 ## Install
 
 ```bash
-pie install extport/EXTENSION_NAME
+pie install extport/protobuf
 ```
 
 ## What is this?
@@ -31,10 +31,14 @@ Pre-built binaries are available for the following platforms:
 
 ## Links
 
-- **Upstream:** https://github.com/UPSTREAM_OWNER/UPSTREAM_REPO
+- **Upstream:** https://github.com/protocolbuffers/protobuf
 - **PIE:** https://github.com/php/pie
 - **Organization:** https://github.com/extport
 
 ## License
 
 This mirror inherits the license of the upstream project. See the upstream repository for license details.
+
+## Issues & Questions
+
+This is an automated mirror repository. Please report all issues and direct questions to the [extport/core](https://github.com/extport/core) repository.
