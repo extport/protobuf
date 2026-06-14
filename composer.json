@@ -1,16 +1,21 @@
 {
-    "name": "extport/EXTENSION_NAME",
-    "description": "Unofficial PIE-compatible mirror of UPSTREAM_OWNER/UPSTREAM_REPO",
+    "name": "extport/protobuf",
+    "description": "Unofficial PIE-compatible mirror of protocolbuffers/protobuf",
     "type": "php-ext",
     "version": "0.0.0",
     "require": {
         "php": ">=8.2"
     },
     "php-ext": {
-        "extension-name": "EXTENSION_NAME",
-        "configure-options": []
+        "extension-name": "protobuf",
+        "configure-options": [],
+        "build-path": "src/php/ext/google/protobuf",
+        "download-url-method": [
+            "pre-packaged-binary",
+            "composer-default"
+        ]
     },
     "support": {
-        "source": "https://github.com/extport/EXTENSION_NAME"
+        "source": "https://github.com/extport/protobuf"
     }
 }
