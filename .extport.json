@@ -1,9 +1,35 @@
 {
-    "$schema": "./.extport.schema.json",
     "upstream": {
-        "repo": "UPSTREAM_OWNER/UPSTREAM_REPO",
+        "repo": "protocolbuffers/protobuf",
         "type": "github"
     },
-    "php_ext_name": "EXTENSION_NAME",
-    "source_dir": "src/"
+    "php_ext_name": "protobuf",
+    "source_dir": "src/",
+    "build": {
+        "enabled": true,
+        "os": [
+            "linux",
+            "darwin"
+        ],
+        "arches": [
+            "x86_64",
+            "arm64"
+        ],
+        "php-version-constraints": [
+            {
+                "ext-versions": "*",
+                "php-versions": [
+                    "8.2",
+                    "8.3",
+                    "8.4",
+                    "8.5"
+                ]
+            }
+        ],
+        "zts": [
+            "nts",
+            "ts"
+        ],
+        "build-path": "php/ext/google/protobuf"
+    }
 }
