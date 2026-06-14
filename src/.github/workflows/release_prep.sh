@@ -9,7 +9,7 @@ TAG=$1
 PREFIX="protobuf-${TAG:1}"
 ARCHIVE="$PREFIX.bazel.tar.gz"
 ARCHIVE_TMP=$(mktemp)
-INTEGRITY_FILE=${PREFIX}/bazel/private/oss/toolchains/prebuilt/protoc_toolchain.bzl
+INTEGRITY_FILE=${PREFIX}/bazel/private/oss/toolchains/prebuilt/tool_integrity.bzl
 
 # NB: configuration for 'git archive' is in /.gitattributes
 git archive --format=tar --prefix=${PREFIX}/ ${TAG} > $ARCHIVE_TMP
@@ -33,7 +33,7 @@ reduce .assets[] as $a (
 EOF
 )
 
-mkdir -p ${PREFIX}/bazel/private
+mkdir -p "$(dirname "$INTEGRITY_FILE")"
 cat >${INTEGRITY_FILE} <<EOF
 "Generated during release by release_prep.sh"
 
