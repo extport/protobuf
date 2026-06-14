@@ -1,0 +1,172 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": ".extport.json configuration",
+    "description": "Configuration for PIE-compatible mirror repos managed by extport/mirror-action",
+    "type": "object",
+    "required": ["upstream", "php_ext_name"],
+    "properties": {
+        "$schema": {
+            "type": "string"
+        },
+        "upstream": {
+            "type": "object",
+            "description": "Upstream repository to mirror from",
+            "required": ["repo", "type"],
+            "properties": {
+                "repo": {
+                    "type": "string",
+                    "description": "GitHub repository in owner/repo format (e.g. \"grpc/grpc\")",
+                    "pattern": "^[^/]+/[^/]+$"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["github"],
+                    "description": "Repository platform type (only \"github\" is supported)"
+                }
+            },
+            "additionalProperties": false
+        },
+        "php_ext_name": {
+            "type": "string",
+            "description": "PHP extension name as reported by php -m. Must match php-ext.extension-name in composer.json"
+        },
+        "source_dir": {
+            "type": "string",
+            "description": "Directory where upstream source code is extracted, relative to repo root",
+            "default": "src/"
+        },
+        "sync": {
+            "type": "object",
+            "description": "Controls version detection and filtering during sync",
+            "properties": {
+                "prereleases": {
+                    "type": "boolean",
+                    "description": "Include upstream pre-releases (alpha, beta, rc, etc.)",
+                    "default": false
+                },
+                "initial-versions": {
+                    "type": "integer",
+                    "description": "On first sync (composer.json version is 0.0.0), limit to the last N upstream releases",
+                    "default": 5,
+                    "minimum": 1
+                },
+                "exclude-tags": {
+                    "type": "array",
+                    "description": "Regex patterns to exclude specific upstream tags from syncing",
+                    "items": {
+                        "type": "string",
+                        "description": "Regex pattern (e.g. \".*-pre\\\\d+\" to exclude pre-release-like tags)"
+                    },
+                    "default": []
+                }
+            },
+            "additionalProperties": false
+        },
+        "hooks": {
+            "type": "object",
+            "description": "Custom shell commands to run during the sync process",
+            "properties": {
+                "post-extract": {
+                    "type": "array",
+                    "description": "Commands to run after tarball extraction, before composer.json update and commit. Each runs via sh -c from repo root. Available env vars: PIE_SYNC_TAG, PIE_SYNC_VERSION, PIE_SOURCE_DIR, GITHUB_WORKSPACE",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "default": []
+                }
+            },
+            "additionalProperties": false
+        },
+        "build": {
+            "type": "object",
+            "description": "Binary build configuration. When enabled, mirror-action generates build matrices and creates draft releases",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Enable binary building for this extension",
+                    "default": false
+                },
+                "os": {
+                    "type": "array",
+                    "description": "Operating systems to build for",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": ["linux", "darwin"]
+                },
+                "arches": {
+                    "type": "array",
+                    "description": "CPU architectures to build for",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": ["x86_64", "arm64"]
+                },
+                "zts": {
+                    "type": "array",
+                    "description": "PHP thread safety variants",
+                    "items": {
+                        "type": "string",
+                        "enum": ["nts", "ts"]
+                    },
+                    "default": ["nts", "ts"]
+                },
+                "libc": {
+                    "type": "array",
+                    "description": "C library variants (Linux only; bsdlibc is automatically used for Darwin)",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": ["glibc", "musl"]
+                },
+                "configure-flags": {
+                    "type": "string",
+                    "description": "Additional flags to pass to the extension's ./configure script",
+                    "default": ""
+                },
+                "apk-packages": {
+                    "type": "string",
+                    "description": "Space-separated list of additional Alpine Linux packages to install in the build container",
+                    "default": ""
+                },
+                "build-path": {
+                    "type": "string",
+                    "description": "Path to extension build config (config.m4) relative to source_dir",
+                    "default": "."
+                },
+                "php-version-constraints": {
+                    "type": "array",
+                    "description": "Maps extension version ranges to supported PHP versions. First matching constraint wins. Uses npm semver syntax for ext-versions (e.g. \"<1.78.0\", \">=2.0.0\", \"*\")",
+                    "items": {
+                        "type": "object",
+                        "required": ["ext-versions", "php-versions"],
+                        "properties": {
+                            "ext-versions": {
+                                "type": "string",
+                                "description": "Semver range for extension versions (e.g. \"<1.78.0\", \">=2.0.0\", \"*\")"
+                            },
+                            "php-versions": {
+                                "type": "array",
+                                "description": "PHP versions to build for when extension version matches this range",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "minItems": 1
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "default": [
+                        {
+                            "ext-versions": "*",
+                            "php-versions": ["8.2", "8.3", "8.4", "8.5"]
+                        }
+                    ]
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "additionalProperties": false
+}

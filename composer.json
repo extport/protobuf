@@ -1,0 +1,16 @@
+{
+    "name": "extport/EXTENSION_NAME",
+    "description": "Unofficial PIE-compatible mirror of UPSTREAM_OWNER/UPSTREAM_REPO",
+    "type": "php-ext",
+    "version": "0.0.0",
+    "require": {
+        "php": ">=8.2"
+    },
+    "php-ext": {
+        "extension-name": "EXTENSION_NAME",
+        "configure-options": []
+    },
+    "support": {
+        "source": "https://github.com/extport/EXTENSION_NAME"
+    }
+}

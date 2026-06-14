@@ -1,0 +1,9 @@
+{
+    "$schema": "./.extport.schema.json",
+    "upstream": {
+        "repo": "UPSTREAM_OWNER/UPSTREAM_REPO",
+        "type": "github"
+    },
+    "php_ext_name": "EXTENSION_NAME",
+    "source_dir": "src/"
+}

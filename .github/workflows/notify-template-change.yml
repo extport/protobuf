@@ -1,0 +1,19 @@
+name: Notify template change
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/**']
+
+jobs:
+  notify:
+    if: github.repository == 'extport/mirror-template'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to core repo
+        env:
+          GH_TOKEN: ${{ secrets.EXTPORT_BOT_TOKEN }}
+        run: |
+          gh api repos/extport/core/dispatches \
+            -f event_type=template-github-changed \
+            -f "client_payload[sha]=${{ github.sha }}"

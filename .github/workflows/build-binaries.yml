@@ -1,0 +1,125 @@
+name: Build pre-packaged binaries
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Release tag to build binaries for'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    name: Check if build is enabled
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+      matrix: ${{ steps.check.outputs.matrix }}
+      release-tag: ${{ steps.tag.outputs.tag }}
+      build-path: ${{ steps.check.outputs.build-path }}
+      configure-flags: ${{ steps.check.outputs.configure-flags }}
+      apk-packages: ${{ steps.check.outputs.apk-packages }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ inputs.release-tag }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Resolve build matrix
+        id: check
+        uses: extport/mirror-action@ae7646a39bce46b645e2da2b1f9fbdfd44835a18 # v1.1.1
+        with:
+          mode: resolve-matrix
+          release-tag: ${{ steps.tag.outputs.tag }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build (${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.libc }}-php${{ matrix.php }}-${{ matrix.zts }})
+    needs: check
+    if: needs.check.outputs.enabled == 'true'
+    runs-on: >-
+      ${{ matrix.os == 'linux' && matrix.arch == 'x86_64' && 'ubuntu-22.04'
+       || matrix.os == 'linux' && matrix.arch == 'arm64' && 'ubuntu-22.04-arm'
+       || matrix.os == 'darwin' && matrix.arch == 'x86_64' && 'macos-15-intel'
+       || matrix.os == 'darwin' && matrix.arch == 'arm64' && 'macos-15' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.check.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ needs.check.outputs.release-tag }}
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        if: matrix.libc != 'musl'
+        with:
+          php-version: ${{ matrix.php }}
+        env:
+          phpts: ${{ matrix.zts }}
+      - name: Build and upload binary
+        uses: extport/mirror-action@ae7646a39bce46b645e2da2b1f9fbdfd44835a18 # v1.1.1
+        with:
+          mode: build
+          release-tag: ${{ needs.check.outputs.release-tag }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          build-path: ${{ needs.check.outputs.build-path }}
+          configure-flags: ${{ needs.check.outputs.configure-flags }}
+          apk-packages: ${{ needs.check.outputs.apk-packages }}
+          docker-image: >-
+            ${{ matrix.libc == 'musl'
+              && format('php:{0}-{1}-alpine', matrix.php, matrix.zts == 'ts' && 'zts' || 'cli')
+              || '' }}
+      - name: Smoke test (clean runtime)
+        if: matrix.os == 'linux'
+        run: |
+          IMAGE=${{ matrix.libc == 'musl'
+            && format('php:{0}-{1}-alpine', matrix.php, matrix.zts == 'ts' && 'zts' || 'cli')
+            || format('php:{0}-{1}', matrix.php, matrix.zts == 'ts' && 'zts' || 'cli') }}
+          EXT_NAME=$(jq -r '.name | split("/")[1]' composer.json)
+          BUILD_PATH=${{ needs.check.outputs.build-path || '.' }}
+          SO_FILE="${BUILD_PATH}/modules/${EXT_NAME}.so"
+          docker run --rm \
+            -v "$(pwd):/workspace" \
+            -w /workspace \
+            "$IMAGE" \
+            sh -c "apk add --no-cache libstdc++ libgcc 2>/dev/null; php -d extension=/workspace/${SO_FILE} -r \"echo extension_loaded('${EXT_NAME}') ? 'OK' : 'FAIL';\""
+      - name: Smoke test (clean runtime)
+        if: matrix.os == 'darwin'
+        run: |
+          EXT_NAME=$(jq -r '.name | split("/")[1]' composer.json)
+          BUILD_PATH=${{ needs.check.outputs.build-path || '.' }}
+          php -d extension="${BUILD_PATH}/modules/${EXT_NAME}.so" -r "echo extension_loaded('${EXT_NAME}') ? 'OK' : 'FAIL';"
+
+  publish:
+    name: Publish release
+    needs: [check, build]
+    if: needs.check.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.check.outputs.release-tag }}"
+          REPO="${{ github.repository }}"
+
+          HIGHEST=$(gh release list --repo "$REPO" --json tagName --limit 200 \
+            | jq -r '.[].tagName' \
+            | sort -V \
+            | tail -1)
+
+          if [ "$TAG" = "$HIGHEST" ]; then
+            echo "Tag $TAG is the highest version — marking as latest"
+            gh release edit "$TAG" --draft=false --latest --repo "$REPO"
+          else
+            echo "Tag $TAG is NOT the highest ($HIGHEST is) — not marking as latest"
+            gh release edit "$TAG" --draft=false --latest=false --repo "$REPO"
+          fi

@@ -1,0 +1,68 @@
+name: Sync from upstream
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    name: Sync upstream releases
+    runs-on: ubuntu-latest
+    outputs:
+      synced-versions: ${{ steps.sync.outputs.synced-versions }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sync from upstream
+        id: sync
+        uses: extport/mirror-action@ae7646a39bce46b645e2da2b1f9fbdfd44835a18 # v1.1.1
+        with:
+          mode: sync
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Summary
+        if: always()
+        run: |
+          echo "Synced versions: ${{ steps.sync.outputs.synced-versions }}"
+          echo "Latest version: ${{ steps.sync.outputs.latest-version }}"
+
+  validate:
+    name: Validate PIE compliance
+    needs: sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: main
+      - name: Validate
+        uses: extport/mirror-action@ae7646a39bce46b645e2da2b1f9fbdfd44835a18 # v1.1.1
+        with:
+          mode: validate
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  dispatch-builds:
+    name: Dispatch binary builds
+    needs: sync
+    if: needs.sync.outputs.synced-versions != '[]' && needs.sync.outputs.synced-versions != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Check if build is enabled
+        id: check
+        run: |
+          ENABLED=$(jq -r '.build.enabled // false' .extport.json)
+          echo "enabled=${ENABLED}" >> "$GITHUB_OUTPUT"
+      - name: Dispatch build-binaries workflow
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSIONS='${{ needs.sync.outputs.synced-versions }}'
+          echo "$VERSIONS" | jq -r '.[]' | while read -r VERSION; do
+            echo "Dispatching build-binaries for ${VERSION}"
+            gh workflow run build-binaries.yml -f release-tag="${VERSION}"
+          done
